@@ -1,0 +1,10 @@
+# Virtual environment (created by venv)
+bin/
+lib/
+lib64
+include/
+pyvenv.cfg
+
+# Python cache
+__pycache__/
+*.py[cod]
