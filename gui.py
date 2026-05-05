@@ -1,28 +1,11 @@
-import struct
 import time
 
 import dolphin_memory_engine
 from imgui_bundle import hello_imgui, imgui
 
-AMMO_ADDR = 0x80A53B03   # 1 byte,  0–255
-HP_ADDR   = 0x80284780   # 2 bytes, 0–2400
+from addresses import ADDRESSES, MemoryAddress
 
 POLL_INTERVAL = 0.25     # seconds
-
-
-# ── Memory helpers ────────────────────────────────────────────────────────────
-
-def _read_word_be(addr: int) -> int:
-    raw = dolphin_memory_engine.read_bytes(addr, 2)
-    return struct.unpack(">H", raw)[0]
-
-
-def _write_word_be(addr: int, value: int):
-    dolphin_memory_engine.write_bytes(addr, struct.pack(">H", value))
-
-
-def _clamp(v: int, lo: int, hi: int) -> int:
-    return max(lo, min(hi, v))
 
 
 # ── Per-widget state ──────────────────────────────────────────────────────────
@@ -37,28 +20,18 @@ class WidgetState:
         self.display   = "—"
 
 
-ammo_state  = WidgetState(0, 255)
-hp_state    = WidgetState(0, 2400)
+def _clamp(v: int, lo: int, hi: int) -> int:
+    return max(lo, min(hi, v))
+
+
+# One WidgetState per address, keyed by the MemoryAddress object
+states: dict[MemoryAddress, WidgetState] = {
+    addr: WidgetState(addr.min_val, addr.max_val) for addr in ADDRESSES
+}
 
 status_text = "Status: —"
 hook_error  = ""
 last_poll   = 0.0
-
-
-# ── Writers ───────────────────────────────────────────────────────────────────
-
-def _write_ammo(v: int):
-    try:
-        dolphin_memory_engine.write_byte(AMMO_ADDR, v)
-    except RuntimeError:
-        pass
-
-
-def _write_hp(v: int):
-    try:
-        _write_word_be(HP_ADDR, v)
-    except RuntimeError:
-        pass
 
 
 # ── Poll (runs every frame, throttled by POLL_INTERVAL) ──────────────────────
@@ -74,40 +47,31 @@ def _poll():
     status_text = f"Status: {dolphin_memory_engine.get_status()}"
 
     if not dolphin_memory_engine.is_hooked():
-        ammo_state.display = "—"
-        hp_state.display   = "—"
+        for state in states.values():
+            state.display = "—"
         return
 
-    # Ammo (1 byte)
-    try:
-        v = dolphin_memory_engine.read_byte(AMMO_ADDR)
-        ammo_state.display = f"{v}  (0x{v:02X})"
-        if ammo_state.freeze:
-            _write_ammo(_clamp(ammo_state.slider, 0, 255))
-        else:
-            ammo_state.slider = _clamp(v, 0, 255)
-    except RuntimeError:
-        ammo_state.display = "read error"
-
-    # HP (2 bytes big-endian)
-    try:
-        v = _read_word_be(HP_ADDR)
-        hp_state.display = f"{v}  (0x{v:04X})"
-        if hp_state.freeze:
-            _write_hp(_clamp(hp_state.slider, 0, 2400))
-        else:
-            hp_state.slider = _clamp(v, 0, 2400)
-    except RuntimeError:
-        hp_state.display = "read error"
+    for addr, state in states.items():
+        try:
+            v = addr.read()
+            digits = addr.hex_digits
+            hex_part = f"  (0x{v:0{digits}X})" if digits is not None else ""
+            state.display = f"{v}{hex_part}"
+            if state.freeze:
+                addr.write(_clamp(state.slider, addr.min_val, addr.max_val))
+            else:
+                state.slider = _clamp(v, addr.min_val, addr.max_val)
+        except RuntimeError:
+            state.display = "read error"
 
 
 # ── Per-address widget ────────────────────────────────────────────────────────
 
-def _draw_memory_widget(label: str, addr: int, state: WidgetState, write_fn):
-    imgui.push_id(label)
+def _draw_memory_widget(addr: MemoryAddress, state: WidgetState):
+    imgui.push_id(addr.name)
 
     flags = imgui.TreeNodeFlags_.default_open
-    if imgui.collapsing_header(f"{label}   [{hex(addr)}]", flags):
+    if imgui.collapsing_header(f"{addr.name}   [{hex(addr.addr)}]", flags):
 
         # Current value + Freeze on the same line
         imgui.text(f"Current value:  {state.display}")
@@ -123,7 +87,7 @@ def _draw_memory_widget(label: str, addr: int, state: WidgetState, write_fn):
             state.slider    = new_val
             state.entry_buf = str(new_val)
             if dolphin_memory_engine.is_hooked():
-                write_fn(new_val)
+                addr.write(new_val)
 
         # Exact-value entry + Apply button
         imgui.text(f"Set exact ({state.min_val}–{state.max_val}):")
@@ -137,7 +101,7 @@ def _draw_memory_widget(label: str, addr: int, state: WidgetState, write_fn):
                 state.slider    = v
                 state.entry_buf = str(v)
                 if dolphin_memory_engine.is_hooked():
-                    write_fn(v)
+                    addr.write(v)
             except ValueError:
                 pass
 
@@ -170,8 +134,8 @@ def _gui():
             dolphin_memory_engine.un_hook()
         except Exception:
             pass
-        ammo_state.display = "—"
-        hp_state.display   = "—"
+        for state in states.values():
+            state.display = "—"
 
     imgui.same_line()
     imgui.text(status_text)
@@ -182,8 +146,8 @@ def _gui():
     imgui.spacing()
 
     # ── Memory widgets ──
-    _draw_memory_widget("Striker Ammunition", AMMO_ADDR, ammo_state, _write_ammo)
-    _draw_memory_widget("Leon HP",            HP_ADDR,   hp_state,   _write_hp)
+    for addr in ADDRESSES:
+        _draw_memory_widget(addr, states[addr])
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
