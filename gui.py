@@ -178,9 +178,9 @@ def _draw_inventory_item(item: InventoryItem):
 
     item_id   = slot_item_ids.get(item, 0)
     item_name = ITEM_NAMES.get(item_id, f"Unknown ({item_id:#04x})")
-    header    = f"{item_name}   [{hex(item.base_addr)}]"
+    label     = f"{item_name}   [{hex(item.base_addr)}]"
 
-    if imgui.collapsing_header(header):
+    if imgui.tree_node_ex("hdr", imgui.TreeNodeFlags_.collapsing_header, label):
         for f in item.fields:
             key     = (item, f.name)
             display = item_displays.get(key, "\u2014")
