@@ -162,11 +162,6 @@ class InventoryItem:
 
 ADDRESSES: list[MemoryAddress] = [
     MemoryAddress("Slot 0 Item ID",      0x80A536EF, AddrType.BYTE, min_val=0, max_val=255, category="Inventory", inc_buttons=True),
-    MemoryAddress("Striker Ammunition",  0x80A53B03, AddrType.BYTE, min_val=0, max_val=255, category="Weapons"),
-    MemoryAddress("Killer7 Ammunition",  0x80A53CDF, AddrType.BYTE, min_val=0, max_val=255, category="Weapons"),
-    MemoryAddress("Incendiaries Grenades",        0x80A53CE7, AddrType.BYTE, min_val=0, max_val=255, category="Weapons"),
-    MemoryAddress("Flash Grenades",      0x80A53A8D, AddrType.BYTE, min_val=0, max_val=255, category="Weapons"),
-    MemoryAddress("Hand Grenades",       0x80A53AEF, AddrType.BYTE, min_val=0, max_val=255, category="Weapons"),
     MemoryAddress("Leon HP",             0x80284780, AddrType.WORD_BE, min_val=0, max_val=2400,     category="Player"),
     MemoryAddress("Pesetas",             0x80284774, AddrType.DWORD_BE, min_val=0, max_val=99999999, category="Currency"),
 ]
