@@ -47,6 +47,7 @@ class MemoryAddress:
     max_val:      int | float | None = None  # numeric types: slider/entry upper bound
     length:       int | None = None          # STRING: max bytes; AOB/STRUCT: byte count; ARRAY: element count
     element_type: AddrType | None = None     # ARRAY: type of each element (must be fixed-width)
+    category:     str = ""                   # display category for GUI filtering
 
     # ── Read ──────────────────────────────────────────────────────────────────
 
@@ -128,6 +129,7 @@ class MemoryAddress:
 # ── Address table ─────────────────────────────────────────────────────────────
 
 ADDRESSES: list[MemoryAddress] = [
-    MemoryAddress("Striker Ammunition", 0x80A53B03, AddrType.BYTE,    min_val=0,  max_val=255),
-    MemoryAddress("Leon HP",            0x80284780, AddrType.WORD_BE, min_val=0,  max_val=2400),
+    MemoryAddress("Striker Ammunition", 0x80A53B03, AddrType.BYTE,    min_val=0, max_val=255,      category="Weapons"),
+    MemoryAddress("Leon HP",            0x80284780, AddrType.WORD_BE, min_val=0, max_val=2400,     category="Player"),
+    MemoryAddress("Pesetas",            0x80284774, AddrType.DWORD_BE, min_val=0, max_val=99999999, category="Currency"),
 ]

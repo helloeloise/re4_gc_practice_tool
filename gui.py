@@ -32,6 +32,7 @@ states: dict[MemoryAddress, WidgetState] = {
 status_text = "Status: —"
 hook_error  = ""
 last_poll   = 0.0
+search_buf  = ""
 
 
 # ── Poll (runs every frame, throttled by POLL_INTERVAL) ──────────────────────
@@ -113,7 +114,7 @@ def _draw_memory_widget(addr: MemoryAddress, state: WidgetState):
 # ── Main GUI callback (called every frame by hello_imgui) ─────────────────────
 
 def _gui():
-    global hook_error
+    global hook_error, search_buf
     _poll()
 
     # ── Connection ──
@@ -145,9 +146,31 @@ def _gui():
 
     imgui.spacing()
 
-    # ── Memory widgets ──
-    for addr in ADDRESSES:
-        _draw_memory_widget(addr, states[addr])
+    # ── Search bar ──
+    imgui.set_next_item_width(-1)
+    _, search_buf = imgui.input_text_with_hint("##search", "Search addresses...", search_buf)
+
+    imgui.spacing()
+
+    # ── Category tabs + memory widgets ──
+    query = search_buf.lower().strip()
+    categories = ["All"] + sorted({addr.category for addr in ADDRESSES if addr.category})
+
+    if imgui.begin_tab_bar("##categories"):
+        for cat in categories:
+            if imgui.begin_tab_item(cat)[0]:
+                visible = [
+                    addr for addr in ADDRESSES
+                    if (cat == "All" or addr.category == cat)
+                    and (not query or query in addr.name.lower())
+                ]
+                if not visible:
+                    imgui.text_disabled("No matches.")
+                else:
+                    for addr in visible:
+                        _draw_memory_widget(addr, states[addr])
+                imgui.end_tab_item()
+        imgui.end_tab_bar()
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
